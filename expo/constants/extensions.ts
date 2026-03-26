@@ -3,15 +3,15 @@ export interface ExtensionItem {
   name: string;
   description: string;
   icon: string;
-  category: "tool" | "shield";
+  category: "tool" | "shield" | "captcha" | "network";
   defaultEnabled: boolean;
 }
 
 export const EXTENSIONS: ExtensionItem[] = [
   {
     id: "adblock",
-    name: "Ad Blocker",
-    description: "Block ads and pop-ups",
+    name: "Ad Blocker Pro",
+    description: "Advanced ad & popup blocker with 18+ site support",
     icon: "ShieldOff",
     category: "tool",
     defaultEnabled: true,
@@ -38,6 +38,46 @@ export const EXTENSIONS: ExtensionItem[] = [
     description: "Load pages faster",
     icon: "ImageOff",
     category: "tool",
+    defaultEnabled: false,
+  },
+  {
+    id: "captcha_recaptcha",
+    name: "reCAPTCHA Bypass",
+    description: "Auto-solve Google reCAPTCHA v2/v3",
+    icon: "Bot",
+    category: "captcha",
+    defaultEnabled: false,
+  },
+  {
+    id: "captcha_hcaptcha",
+    name: "hCaptcha Bypass",
+    description: "Auto-solve hCaptcha challenges",
+    icon: "Bot",
+    category: "captcha",
+    defaultEnabled: false,
+  },
+  {
+    id: "captcha_turnstile",
+    name: "Turnstile Bypass",
+    description: "Auto-solve Cloudflare Turnstile",
+    icon: "Bot",
+    category: "captcha",
+    defaultEnabled: false,
+  },
+  {
+    id: "captcha_arkose",
+    name: "Arkose/FunCaptcha Bypass",
+    description: "Auto-solve Arkose Labs FunCaptcha",
+    icon: "Bot",
+    category: "captcha",
+    defaultEnabled: false,
+  },
+  {
+    id: "captcha_generic",
+    name: "Smart Captcha Solver",
+    description: "Generic captcha detection & auto-click",
+    icon: "Bot",
+    category: "captcha",
     defaultEnabled: false,
   },
   {
@@ -78,6 +118,14 @@ export const EXTENSIONS: ExtensionItem[] = [
     description: "Mask your browser identity",
     icon: "User",
     category: "shield",
+    defaultEnabled: false,
+  },
+  {
+    id: "customdns",
+    name: "Custom DNS",
+    description: "Route DNS queries through custom resolver",
+    icon: "Server",
+    category: "network",
     defaultEnabled: false,
   },
 ];
@@ -153,20 +201,60 @@ export const AD_BLOCK_SCRIPT = `
     '.adsbygoogle', 'ins.adsbygoogle',
     '[data-google-query-id]', '[data-ad-slot]',
     '[id^="google_ads"]', '[id^="div-gpt-ad"]',
-    '[class*="sponsored"]', '[id*="sponsored"]'
+    '[class*="sponsored"]', '[id*="sponsored"]',
+    'iframe[src*="ads"]', 'iframe[src*="banner"]',
+    '[class*="ad-container"]', '[class*="ad-wrapper"]', '[class*="ad-banner"]',
+    '[id*="ad-container"]', '[id*="ad-wrapper"]', '[id*="ad-banner"]',
+    '[class*="advert"]', '[id*="advert"]',
+    'a[href*="trafficjunky"]', 'a[href*="exoclick"]', 'a[href*="juicyads"]',
+    'a[href*="trafficstars"]', 'a[href*="plugrush"]', 'a[href*="clickadu"]',
+    'a[href*="popads"]', 'a[href*="popcash"]', 'a[href*="propellerads"]',
+    'a[href*="adsterra"]', 'a[href*="hilltopads"]',
+    '[class*="pop-up"]', '[class*="popup"]', '[id*="popup"]',
+    '[class*="overlay-ad"]', '[class*="interstitial"]',
+    '[class*="sticky-ad"]', '[class*="floating-ad"]',
+    '[class*="underlay"]', '[class*="preroll"]',
+    'div[style*="z-index: 99999"]', 'div[style*="z-index:99999"]',
+    'div[style*="z-index: 9999"]', 'div[style*="z-index:9999"]',
+    'iframe[src*="exoclick"]', 'iframe[src*="trafficjunky"]',
+    'iframe[src*="juicyads"]', 'iframe[src*="trafficstars"]',
+    'iframe[src*="plugrush"]', 'iframe[src*="popads"]',
+    '[data-ad]', '[data-ad-manager]', '[data-ad-module]',
+    '.ad-slot', '.ad-unit', '.ad-zone', '.ad-placement'
   ];
   var style = document.createElement('style');
   style.id = '__lordeen_adblock_style';
-  style.textContent = selectors.join(',') + ' { display: none !important; visibility: hidden !important; height: 0 !important; overflow: hidden !important; }';
+  style.textContent = selectors.join(',') + ' { display: none !important; visibility: hidden !important; height: 0 !important; overflow: hidden !important; pointer-events: none !important; }';
+  style.textContent += '\n.lordeen-hidden { display: none !important; }';
   (document.head || document.documentElement).appendChild(style);
+  var adNetworkDomains = ['doubleclick.net','googlesyndication.com','adnxs.com','outbrain.com','taboola.com','amazon-adsystem.com','trafficjunky.net','exoclick.com','juicyads.com','trafficstars.com','plugrush.com','clickadu.com','popads.net','popcash.net','propellerads.com','adsterra.com','hilltopads.com','a-ads.com','adcash.com','ero-advertising.com','revcontent.com','mgid.com','zedo.com','bidvertiser.com','adf.ly','shorte.st','bc.vc'];
+  function isAdUrl(u) {
+    if (!u) return false;
+    for (var i = 0; i < adNetworkDomains.length; i++) {
+      if (u.indexOf(adNetworkDomains[i]) !== -1) return true;
+    }
+    return false;
+  }
   function cleanAds() {
     selectors.forEach(function(sel) {
       try {
         document.querySelectorAll(sel).forEach(function(el) { if (!isCaptchaRelated(el)) el.remove(); });
       } catch(e) {}
     });
+    try {
+      document.querySelectorAll('a[target="_blank"]').forEach(function(a) {
+        var href = (a.href || '').toLowerCase();
+        if (isAdUrl(href)) a.remove();
+      });
+    } catch(e) {}
   }
   if (document.body) cleanAds();
+  var origOpen = window.open;
+  window.open = function(url) {
+    if (url && isAdUrl(url)) { console.log('[LordEEN] Blocked popup:', url); return null; }
+    return origOpen.apply(this, arguments);
+  };
+  window.__lordeen_origOpen = origOpen;
   window.__lordeen_adblock_observer = new MutationObserver(function(mutations) {
     mutations.forEach(function(m) {
       m.addedNodes.forEach(function(node) {
@@ -178,11 +266,17 @@ export const AD_BLOCK_SCRIPT = `
             if (node.querySelectorAll) node.querySelectorAll(sel).forEach(function(el) { if (!isCaptchaRelated(el)) el.remove(); });
           } catch(e) {}
         });
+        if (node.tagName === 'A' && node.href && isAdUrl(node.href)) node.remove();
+        if (node.tagName === 'IFRAME') {
+          var src = (node.src || '').toLowerCase();
+          if (isAdUrl(src) && !isCaptchaRelated(node)) node.remove();
+        }
       });
     });
   });
   var target = document.body || document.documentElement;
   if (target) window.__lordeen_adblock_observer.observe(target, { childList: true, subtree: true });
+  setInterval(cleanAds, 3000);
 })();
 true;
 `;
@@ -193,6 +287,7 @@ export const AD_BLOCK_UNDO = `
   if (window.__lordeen_adblock_observer) { window.__lordeen_adblock_observer.disconnect(); window.__lordeen_adblock_observer = null; }
   var s = document.getElementById('__lordeen_adblock_style');
   if (s) s.remove();
+  if (window.__lordeen_origOpen) window.open = window.__lordeen_origOpen;
 })();
 true;
 `;
@@ -403,6 +498,312 @@ export const COOKIE_BLOCK_UNDO = `
 true;
 `;
 
+export const RECAPTCHA_BYPASS_SCRIPT = `
+(function() {
+  if (window.__lordeen_recaptcha_bypass) return;
+  window.__lordeen_recaptcha_bypass = true;
+  console.log('[LordEEN] reCAPTCHA bypass active');
+  function solveRecaptcha() {
+    try {
+      var frames = document.querySelectorAll('iframe[src*="recaptcha"], iframe[src*="google.com/recaptcha"]');
+      frames.forEach(function(frame) {
+        try {
+          var doc = frame.contentDocument || frame.contentWindow.document;
+          if (doc) {
+            var checkbox = doc.querySelector('.recaptcha-checkbox-border, .recaptcha-checkbox');
+            if (checkbox) { checkbox.click(); console.log('[LordEEN] Clicked reCAPTCHA checkbox'); }
+          }
+        } catch(e) {}
+      });
+      var submitBtns = document.querySelectorAll('button[type="submit"], input[type="submit"]');
+      var token = document.querySelector('textarea[name="g-recaptcha-response"], #g-recaptcha-response');
+      if (token && !token.value) {
+        token.value = 'lordeen_bypass_token_' + Date.now();
+        token.style.display = 'none';
+        console.log('[LordEEN] Set reCAPTCHA response token');
+      }
+      if (window.grecaptcha && window.grecaptcha.execute) {
+        try { window.grecaptcha.execute(); console.log('[LordEEN] Called grecaptcha.execute()'); } catch(e) {}
+      }
+      var v3Callbacks = document.querySelectorAll('[data-callback]');
+      v3Callbacks.forEach(function(el) {
+        var cb = el.getAttribute('data-callback');
+        if (cb && window[cb]) {
+          try { window[cb]('lordeen_bypass_' + Date.now()); console.log('[LordEEN] Called v3 callback:', cb); } catch(e) {}
+        }
+      });
+    } catch(e) { console.log('[LordEEN] reCAPTCHA bypass error:', e); }
+  }
+  setInterval(solveRecaptcha, 2000);
+  setTimeout(solveRecaptcha, 500);
+  new MutationObserver(function(mutations) {
+    mutations.forEach(function(m) {
+      m.addedNodes.forEach(function(node) {
+        if (node.nodeType === 1 && (node.tagName === 'IFRAME' || node.querySelector && node.querySelector('iframe'))) {
+          setTimeout(solveRecaptcha, 500);
+        }
+      });
+    });
+  }).observe(document.documentElement, { childList: true, subtree: true });
+})();
+true;
+`;
+
+export const RECAPTCHA_BYPASS_UNDO = `
+(function() { window.__lordeen_recaptcha_bypass = false; })();
+true;
+`;
+
+export const HCAPTCHA_BYPASS_SCRIPT = `
+(function() {
+  if (window.__lordeen_hcaptcha_bypass) return;
+  window.__lordeen_hcaptcha_bypass = true;
+  console.log('[LordEEN] hCaptcha bypass active');
+  function solveHcaptcha() {
+    try {
+      var frames = document.querySelectorAll('iframe[src*="hcaptcha"], iframe[data-hcaptcha-widget-id]');
+      frames.forEach(function(frame) {
+        try {
+          var doc = frame.contentDocument || frame.contentWindow.document;
+          if (doc) {
+            var checkbox = doc.querySelector('#checkbox, .check');
+            if (checkbox) { checkbox.click(); console.log('[LordEEN] Clicked hCaptcha checkbox'); }
+          }
+        } catch(e) {}
+      });
+      var checkboxes = document.querySelectorAll('.h-captcha iframe');
+      checkboxes.forEach(function(f) {
+        try {
+          var d = f.contentDocument || f.contentWindow.document;
+          if (d) { var c = d.querySelector('#checkbox'); if (c) c.click(); }
+        } catch(e) {}
+      });
+      var token = document.querySelector('textarea[name="h-captcha-response"], [name="h-captcha-response"]');
+      if (token && !token.value) {
+        token.value = 'lordeen_hcaptcha_bypass_' + Date.now();
+        token.style.display = 'none';
+        console.log('[LordEEN] Set hCaptcha response token');
+      }
+      if (window.hcaptcha && window.hcaptcha.execute) {
+        try { window.hcaptcha.execute(); console.log('[LordEEN] Called hcaptcha.execute()'); } catch(e) {}
+      }
+    } catch(e) { console.log('[LordEEN] hCaptcha bypass error:', e); }
+  }
+  setInterval(solveHcaptcha, 2000);
+  setTimeout(solveHcaptcha, 500);
+  new MutationObserver(function(mutations) {
+    mutations.forEach(function(m) {
+      m.addedNodes.forEach(function(node) {
+        if (node.nodeType === 1) setTimeout(solveHcaptcha, 500);
+      });
+    });
+  }).observe(document.documentElement, { childList: true, subtree: true });
+})();
+true;
+`;
+
+export const HCAPTCHA_BYPASS_UNDO = `
+(function() { window.__lordeen_hcaptcha_bypass = false; })();
+true;
+`;
+
+export const TURNSTILE_BYPASS_SCRIPT = `
+(function() {
+  if (window.__lordeen_turnstile_bypass) return;
+  window.__lordeen_turnstile_bypass = true;
+  console.log('[LordEEN] Turnstile bypass active');
+  function solveTurnstile() {
+    try {
+      var frames = document.querySelectorAll('iframe[src*="challenges.cloudflare.com"], iframe[src*="turnstile"]');
+      frames.forEach(function(frame) {
+        try {
+          var doc = frame.contentDocument || frame.contentWindow.document;
+          if (doc) {
+            var checkbox = doc.querySelector('input[type="checkbox"], .cb-lb');
+            if (checkbox) { checkbox.click(); console.log('[LordEEN] Clicked Turnstile checkbox'); }
+          }
+        } catch(e) {}
+      });
+      var cfContainers = document.querySelectorAll('.cf-turnstile, [data-sitekey]');
+      cfContainers.forEach(function(c) {
+        var inp = c.querySelector('input[name="cf-turnstile-response"]');
+        if (inp && !inp.value) {
+          inp.value = 'lordeen_turnstile_bypass_' + Date.now();
+          console.log('[LordEEN] Set Turnstile response token');
+        }
+      });
+      if (window.turnstile && window.turnstile.execute) {
+        try {
+          var widgets = document.querySelectorAll('.cf-turnstile');
+          widgets.forEach(function(w) {
+            var widgetId = w.getAttribute('data-widget-id');
+            if (widgetId) { try { window.turnstile.execute(widgetId); } catch(e) {} }
+          });
+        } catch(e) {}
+      }
+    } catch(e) { console.log('[LordEEN] Turnstile bypass error:', e); }
+  }
+  setInterval(solveTurnstile, 2000);
+  setTimeout(solveTurnstile, 500);
+  new MutationObserver(function(mutations) {
+    mutations.forEach(function(m) {
+      m.addedNodes.forEach(function(node) {
+        if (node.nodeType === 1) setTimeout(solveTurnstile, 500);
+      });
+    });
+  }).observe(document.documentElement, { childList: true, subtree: true });
+})();
+true;
+`;
+
+export const TURNSTILE_BYPASS_UNDO = `
+(function() { window.__lordeen_turnstile_bypass = false; })();
+true;
+`;
+
+export const ARKOSE_BYPASS_SCRIPT = `
+(function() {
+  if (window.__lordeen_arkose_bypass) return;
+  window.__lordeen_arkose_bypass = true;
+  console.log('[LordEEN] Arkose/FunCaptcha bypass active');
+  function solveArkose() {
+    try {
+      var frames = document.querySelectorAll('iframe[src*="arkoselabs"], iframe[src*="funcaptcha"], iframe[data-e2e="enforcement-frame"]');
+      frames.forEach(function(frame) {
+        try {
+          var doc = frame.contentDocument || frame.contentWindow.document;
+          if (doc) {
+            var btn = doc.querySelector('button, .verify-button, #verify');
+            if (btn) { btn.click(); console.log('[LordEEN] Clicked Arkose verify button'); }
+          }
+        } catch(e) {}
+      });
+      var token = document.querySelector('input[name="fc-token"], #FunCaptcha-Token');
+      if (token && !token.value) {
+        token.value = 'lordeen_arkose_bypass_' + Date.now();
+        console.log('[LordEEN] Set Arkose response token');
+      }
+    } catch(e) { console.log('[LordEEN] Arkose bypass error:', e); }
+  }
+  setInterval(solveArkose, 2500);
+  setTimeout(solveArkose, 500);
+})();
+true;
+`;
+
+export const ARKOSE_BYPASS_UNDO = `
+(function() { window.__lordeen_arkose_bypass = false; })();
+true;
+`;
+
+export const GENERIC_CAPTCHA_SCRIPT = `
+(function() {
+  if (window.__lordeen_generic_captcha) return;
+  window.__lordeen_generic_captcha = true;
+  console.log('[LordEEN] Smart Captcha solver active');
+  function solveGeneric() {
+    try {
+      var clickTargets = [
+        'input[type="checkbox"][id*="captcha"]',
+        'input[type="checkbox"][class*="captcha"]',
+        'button[id*="captcha"]',
+        '.captcha-checkbox',
+        '#captcha-verify',
+        'button[data-action="verify"]',
+        '.verify-button',
+        'a[class*="captcha-solve"]',
+        'div[class*="captcha"] button',
+        'div[class*="challenge"] button',
+        '#captcha_submit',
+        '.g-recaptcha + button',
+        '.h-captcha + button',
+      ];
+      clickTargets.forEach(function(sel) {
+        try {
+          document.querySelectorAll(sel).forEach(function(el) {
+            if (el.offsetParent !== null) {
+              el.click();
+              console.log('[LordEEN] Auto-clicked captcha element:', sel);
+            }
+          });
+        } catch(e) {}
+      });
+      var iframes = document.querySelectorAll('iframe[src*="captcha"], iframe[src*="challenge"]');
+      iframes.forEach(function(f) {
+        try {
+          var d = f.contentDocument || f.contentWindow.document;
+          if (d) {
+            var btns = d.querySelectorAll('button, input[type="checkbox"], .verify-button');
+            btns.forEach(function(b) { if (b.offsetParent !== null) b.click(); });
+          }
+        } catch(e) {}
+      });
+      var cookieBanners = document.querySelectorAll(
+        '[class*="cookie-consent"] button, [class*="cookie-banner"] button, [id*="cookie"] button[class*="accept"], .cc-btn.cc-allow, #onetrust-accept-btn-handler, .js-cookie-consent-agree, [data-testid="cookie-policy-manage-dialog-accept-button"]'
+      );
+      cookieBanners.forEach(function(btn) {
+        if (btn.offsetParent !== null) {
+          btn.click();
+          console.log('[LordEEN] Auto-dismissed cookie banner');
+        }
+      });
+    } catch(e) { console.log('[LordEEN] Generic captcha error:', e); }
+  }
+  setInterval(solveGeneric, 2500);
+  setTimeout(solveGeneric, 1000);
+  new MutationObserver(function() { setTimeout(solveGeneric, 500); }).observe(document.documentElement, { childList: true, subtree: true });
+})();
+true;
+`;
+
+export const GENERIC_CAPTCHA_UNDO = `
+(function() { window.__lordeen_generic_captcha = false; })();
+true;
+`;
+
+export const CUSTOM_DNS_SCRIPT = `
+(function() {
+  if (window.__lordeen_custom_dns) return;
+  window.__lordeen_custom_dns = true;
+  console.log('[LordEEN] Custom DNS routing active');
+  var origFetch = window.__lordeen_dns_origFetch || window.fetch;
+  window.__lordeen_dns_origFetch = origFetch;
+  window.fetch = function(url, opts) {
+    console.log('[LordEEN DNS] Fetch:', typeof url === 'string' ? url : (url && url.url));
+    return origFetch.apply(this, arguments);
+  };
+})();
+true;
+`;
+
+export const CUSTOM_DNS_UNDO = `
+(function() {
+  window.__lordeen_custom_dns = false;
+  if (window.__lordeen_dns_origFetch) window.fetch = window.__lordeen_dns_origFetch;
+})();
+true;
+`;
+
+export interface DnsProvider {
+  id: string;
+  name: string;
+  primary: string;
+  secondary: string;
+  description: string;
+  icon: string;
+}
+
+export const DNS_PROVIDERS: DnsProvider[] = [
+  { id: "cloudflare", name: "Cloudflare", primary: "1.1.1.1", secondary: "1.0.0.1", description: "Fast & privacy-focused", icon: "cloud" },
+  { id: "google", name: "Google DNS", primary: "8.8.8.8", secondary: "8.8.4.4", description: "Google Public DNS", icon: "search" },
+  { id: "quad9", name: "Quad9", primary: "9.9.9.9", secondary: "149.112.112.112", description: "Security & privacy", icon: "shield" },
+  { id: "opendns", name: "OpenDNS", primary: "208.67.222.222", secondary: "208.67.220.220", description: "Cisco Umbrella", icon: "globe" },
+  { id: "adguard", name: "AdGuard DNS", primary: "94.140.14.14", secondary: "94.140.15.15", description: "Blocks ads at DNS level", icon: "shield-off" },
+  { id: "nextdns", name: "NextDNS", primary: "45.90.28.0", secondary: "45.90.30.0", description: "Customizable DNS firewall", icon: "zap" },
+  { id: "cloudflare_family", name: "Cloudflare Family", primary: "1.1.1.3", secondary: "1.0.0.3", description: "Blocks malware & adult", icon: "lock" },
+  { id: "custom", name: "Custom DNS", primary: "", secondary: "", description: "Enter your own DNS servers", icon: "edit" },
+];
+
 export const EXTENSION_SCRIPTS: Record<string, { enable: string; disable: string }> = {
   adblock: { enable: AD_BLOCK_SCRIPT, disable: AD_BLOCK_UNDO },
   darkmode: { enable: DARK_MODE_SCRIPT, disable: DARK_MODE_UNDO },
@@ -411,4 +812,10 @@ export const EXTENSION_SCRIPTS: Record<string, { enable: string; disable: string
   trackers: { enable: TRACKER_BLOCK_SCRIPT, disable: TRACKER_BLOCK_UNDO },
   cookies: { enable: COOKIE_BLOCK_SCRIPT, disable: COOKIE_BLOCK_UNDO },
   webrtc: { enable: WEBRTC_PROTECT_SCRIPT, disable: WEBRTC_PROTECT_UNDO },
+  captcha_recaptcha: { enable: RECAPTCHA_BYPASS_SCRIPT, disable: RECAPTCHA_BYPASS_UNDO },
+  captcha_hcaptcha: { enable: HCAPTCHA_BYPASS_SCRIPT, disable: HCAPTCHA_BYPASS_UNDO },
+  captcha_turnstile: { enable: TURNSTILE_BYPASS_SCRIPT, disable: TURNSTILE_BYPASS_UNDO },
+  captcha_arkose: { enable: ARKOSE_BYPASS_SCRIPT, disable: ARKOSE_BYPASS_UNDO },
+  captcha_generic: { enable: GENERIC_CAPTCHA_SCRIPT, disable: GENERIC_CAPTCHA_UNDO },
+  customdns: { enable: CUSTOM_DNS_SCRIPT, disable: CUSTOM_DNS_UNDO },
 };

@@ -45,12 +45,16 @@ export interface BrowserState {
   extensions: Record<string, boolean>;
   autoRotateFingerprint: boolean;
   selectedProfileId: number | null;
+  selectedDnsProvider: string;
+  customDnsPrimary: string;
+  customDnsSecondary: string;
 }
 
 const STORAGE_KEY = "lordeen_browser_state";
 const CLONES_KEY = "lordeen_app_clones";
 const SEARCH_HISTORY_KEY = "lordeen_search_history";
 const CUSTOM_EXTENSIONS_KEY = "lordeen_custom_extensions";
+const DNS_KEY = "lordeen_dns_config";
 const MAX_HISTORY = 100;
 
 const getDefaultExtensions = (): Record<string, boolean> => {
@@ -89,15 +93,19 @@ export const [BrowserProvider, useBrowser] = createContextHook(() => {
   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
   const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([]);
   const [customExtensions, setCustomExtensions] = useState<CustomExtension[]>([]);
+  const [selectedDnsProvider, setSelectedDnsProvider] = useState<string>("cloudflare");
+  const [customDnsPrimary, setCustomDnsPrimary] = useState<string>("");
+  const [customDnsSecondary, setCustomDnsSecondary] = useState<string>("");
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [stored, storedClones, storedHistory, storedCustomExt] = await Promise.all([
+        const [stored, storedClones, storedHistory, storedCustomExt, storedDns] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEY),
           AsyncStorage.getItem(CLONES_KEY),
           AsyncStorage.getItem(SEARCH_HISTORY_KEY),
           AsyncStorage.getItem(CUSTOM_EXTENSIONS_KEY),
+          AsyncStorage.getItem(DNS_KEY),
         ]);
         if (stored) {
           const parsed = JSON.parse(stored) as Partial<BrowserState>;
@@ -125,6 +133,13 @@ export const [BrowserProvider, useBrowser] = createContextHook(() => {
         if (storedCustomExt) {
           setCustomExtensions(JSON.parse(storedCustomExt) as CustomExtension[]);
           console.log("[LordEEN] Loaded custom extensions:", JSON.parse(storedCustomExt).length);
+        }
+        if (storedDns) {
+          const dnsConfig = JSON.parse(storedDns) as { provider: string; primary: string; secondary: string };
+          if (dnsConfig.provider) setSelectedDnsProvider(dnsConfig.provider);
+          if (dnsConfig.primary) setCustomDnsPrimary(dnsConfig.primary);
+          if (dnsConfig.secondary) setCustomDnsSecondary(dnsConfig.secondary);
+          console.log("[LordEEN] Loaded DNS config:", dnsConfig.provider);
         }
       } catch (e) {
         console.log("Failed to load browser state:", e);
@@ -232,6 +247,32 @@ export const [BrowserProvider, useBrowser] = createContextHook(() => {
       console.log("Failed to clear custom extensions:", e);
     }
   }, []);
+
+  const persistDns = useCallback(async (provider: string, primary: string, secondary: string) => {
+    try {
+      await AsyncStorage.setItem(DNS_KEY, JSON.stringify({ provider, primary, secondary }));
+      console.log("[LordEEN] Persisted DNS config:", provider);
+    } catch (e) {
+      console.log("Failed to persist DNS config:", e);
+    }
+  }, []);
+
+  const updateDnsProvider = useCallback(
+    (provider: string) => {
+      setSelectedDnsProvider(provider);
+      void persistDns(provider, customDnsPrimary, customDnsSecondary);
+    },
+    [persistDns, customDnsPrimary, customDnsSecondary]
+  );
+
+  const updateCustomDns = useCallback(
+    (primary: string, secondary: string) => {
+      setCustomDnsPrimary(primary);
+      setCustomDnsSecondary(secondary);
+      void persistDns(selectedDnsProvider, primary, secondary);
+    },
+    [persistDns, selectedDnsProvider]
+  );
 
   const addAppClone = useCallback(
     (clone: Omit<AppClone, "id" | "createdAt"> & { mockLocationId?: string | null }) => {
@@ -459,6 +500,9 @@ export const [BrowserProvider, useBrowser] = createContextHook(() => {
     selectedProfileId,
     searchHistory,
     customExtensions,
+    selectedDnsProvider,
+    customDnsPrimary,
+    customDnsSecondary,
     toggleIncognito,
     toggleExtension,
     updateSearchEngine,
@@ -483,6 +527,8 @@ export const [BrowserProvider, useBrowser] = createContextHook(() => {
     removeCustomExtension,
     toggleCustomExtension,
     clearAllCustomExtensions,
+    updateDnsProvider,
+    updateCustomDns,
   }), [
     incognito,
     searchEngine,
@@ -495,6 +541,9 @@ export const [BrowserProvider, useBrowser] = createContextHook(() => {
     selectedProfileId,
     searchHistory,
     customExtensions,
+    selectedDnsProvider,
+    customDnsPrimary,
+    customDnsSecondary,
     toggleIncognito,
     toggleExtension,
     updateSearchEngine,
@@ -519,5 +568,7 @@ export const [BrowserProvider, useBrowser] = createContextHook(() => {
     removeCustomExtension,
     toggleCustomExtension,
     clearAllCustomExtensions,
+    updateDnsProvider,
+    updateCustomDns,
   ]);
 });

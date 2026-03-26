@@ -45,6 +45,7 @@ import {
   Wallet,
   Compass,
   Copy,
+  Package,
 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
@@ -457,26 +458,49 @@ export default function HomeScreen() {
         )}
 
         <View style={styles.addCloneSection}>
-          <TouchableOpacity
-            style={styles.addCloneBtn}
-            onPress={() => {
-              if (Platform.OS !== "web") {
-                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              }
-              setShowAddClone(true);
-            }}
-            activeOpacity={0.7}
-            testID="add-clone-btn"
-          >
-            <View style={styles.addCloneIconWrap}>
-              <Plus size={22} color="#000" />
-            </View>
-            <View style={styles.addCloneInfo}>
-              <Text style={styles.addCloneTitle}>Add App Clone</Text>
-              <Text style={styles.addCloneDesc}>Clone any app or website</Text>
-            </View>
-            <Copy size={18} color={Colors.textMuted} />
-          </TouchableOpacity>
+          <View style={styles.addBtnsRow}>
+            <TouchableOpacity
+              style={styles.addCloneBtn}
+              onPress={() => {
+                if (Platform.OS !== "web") {
+                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                }
+                setShowAddClone(true);
+              }}
+              activeOpacity={0.7}
+              testID="add-clone-btn"
+            >
+              <View style={styles.addCloneIconWrap}>
+                <Plus size={20} color="#000" />
+              </View>
+              <View style={styles.addCloneInfo}>
+                <Text style={styles.addCloneTitle}>Add Clone</Text>
+                <Text style={styles.addCloneDesc}>Clone apps</Text>
+              </View>
+              <Copy size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.addExtBtn}
+              onPress={() => {
+                if (Platform.OS !== "web") {
+                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                }
+                router.push({ pathname: "/browser", params: { url: "https://www.google.com", openExtensions: "true" } });
+              }}
+              activeOpacity={0.7}
+              testID="add-extension-btn"
+            >
+              <View style={styles.addExtIconWrap}>
+                <Plus size={20} color="#000" />
+              </View>
+              <View style={styles.addCloneInfo}>
+                <Text style={styles.addExtTitle}>Add Extension</Text>
+                <Text style={styles.addCloneDesc}>Custom JS</Text>
+              </View>
+              <Package size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {recentHistory.length > 0 && !incognito && (
@@ -736,35 +760,64 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginHorizontal: 20,
   },
+  addBtnsRow: {
+    flexDirection: "row" as const,
+    gap: 10,
+  },
   addCloneBtn: {
+    flex: 1,
     flexDirection: "row" as const,
     alignItems: "center" as const,
     backgroundColor: Colors.card,
     borderRadius: 16,
-    padding: 14,
+    padding: 12,
     borderWidth: 1.5,
     borderColor: Colors.accent,
     borderStyle: "dashed" as const,
   },
+  addExtBtn: {
+    flex: 1,
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1.5,
+    borderColor: "#7C3AED",
+    borderStyle: "dashed" as const,
+  },
   addCloneIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     backgroundColor: Colors.accent,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+  },
+  addExtIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "#7C3AED",
     alignItems: "center" as const,
     justifyContent: "center" as const,
   },
   addCloneInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 10,
   },
   addCloneTitle: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "700" as const,
     color: Colors.accent,
   },
+  addExtTitle: {
+    fontSize: 13,
+    fontWeight: "700" as const,
+    color: "#7C3AED",
+  },
   addCloneDesc: {
-    fontSize: 12,
+    fontSize: 10,
     color: Colors.textSecondary,
     marginTop: 1,
   },

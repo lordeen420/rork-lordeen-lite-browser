@@ -39,7 +39,7 @@ try {
 }
 
 export default function BrowserScreen() {
-  const params = useLocalSearchParams<{ url?: string; query?: string; cloneName?: string; cloneProfileId?: string; cloneLocationId?: string }>();
+  const params = useLocalSearchParams<{ url?: string; query?: string; cloneName?: string; cloneProfileId?: string; cloneLocationId?: string; openExtensions?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const {
@@ -63,7 +63,7 @@ export default function BrowserScreen() {
   const [canGoBack, setCanGoBack] = useState<boolean>(false);
   const [canGoForward, setCanGoForward] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [showExtensions, setShowExtensions] = useState<boolean>(false);
+  const [showExtensions, setShowExtensions] = useState<boolean>(params.openExtensions === "true");
   const [isSecure, setIsSecure] = useState<boolean>(false);
   const [profileLabel, setProfileLabel] = useState<string>("");
 

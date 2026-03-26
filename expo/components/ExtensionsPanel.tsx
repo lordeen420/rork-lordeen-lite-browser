@@ -9,6 +9,7 @@ import {
   Switch,
   Dimensions,
   Platform,
+  TextInput,
 } from "react-native";
 import {
   ShieldOff,
@@ -26,17 +27,25 @@ import {
   Puzzle,
   Package,
   ChevronRight,
+  Bot,
+  Server,
+  Check,
+  Globe,
+  Search,
+  Zap,
+  Lock,
+  Edit3,
 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
-import { EXTENSIONS, ExtensionItem } from "@/constants/extensions";
+import { EXTENSIONS, ExtensionItem, DNS_PROVIDERS, DnsProvider } from "@/constants/extensions";
 import { useBrowser } from "@/providers/BrowserProvider";
 import CustomExtensionManager from "@/components/CustomExtensionManager";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 
 const ICON_MAP: Record<string, React.ComponentType<{ size: number; color: string }>> = {
-  ShieldOff, Moon, FileCode, ImageOff, Fingerprint, Cookie, Eye, Wifi, User,
+  ShieldOff, Moon, FileCode, ImageOff, Fingerprint, Cookie, Eye, Wifi, User, Bot, Server,
 };
 
 interface ExtensionsPanelProps {
@@ -87,6 +96,43 @@ const ExtensionToggle = React.memo(
   }
 );
 
+const DNS_ICON_MAP: Record<string, React.ComponentType<{ size: number; color: string }>> = {
+  cloud: Globe, search: Search, shield: Shield, globe: Globe,
+  "shield-off": ShieldOff, zap: Zap, lock: Lock, edit: Edit3,
+};
+
+const DnsProviderItem = React.memo(
+  ({
+    provider,
+    isSelected,
+    onSelect,
+  }: {
+    provider: DnsProvider;
+    isSelected: boolean;
+    onSelect: (id: string) => void;
+  }) => {
+    const IconComp = DNS_ICON_MAP[provider.icon] || Globe;
+    return (
+      <TouchableOpacity
+        style={[styles.dnsRow, isSelected && styles.dnsRowActive]}
+        onPress={() => onSelect(provider.id)}
+        activeOpacity={0.7}
+      >
+        <View style={[styles.dnsIconWrap, isSelected && styles.dnsIconWrapActive]}>
+          <IconComp size={16} color={isSelected ? "#1E90FF" : Colors.textSecondary} />
+        </View>
+        <View style={styles.dnsInfo}>
+          <Text style={[styles.dnsName, isSelected && styles.dnsNameActive]}>{provider.name}</Text>
+          <Text style={styles.dnsMeta}>
+            {provider.id === "custom" ? "Your custom servers" : provider.primary + " / " + provider.secondary}
+          </Text>
+        </View>
+        {isSelected && <Check size={14} color="#1E90FF" />}
+      </TouchableOpacity>
+    );
+  }
+);
+
 export default function ExtensionsPanel({ visible, onClose }: ExtensionsPanelProps) {
   const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -97,8 +143,16 @@ export default function ExtensionsPanel({ visible, onClose }: ExtensionsPanelPro
     activeProfile,
     toggleAutoRotate,
     customExtensions,
+    selectedDnsProvider,
+    customDnsPrimary,
+    customDnsSecondary,
+    updateDnsProvider,
+    updateCustomDns,
   } = useBrowser();
   const [showCustomManager, setShowCustomManager] = useState<boolean>(false);
+  const [showDnsConfig, setShowDnsConfig] = useState<boolean>(false);
+  const [dnsInput1, setDnsInput1] = useState<string>(customDnsPrimary);
+  const [dnsInput2, setDnsInput2] = useState<string>(customDnsSecondary);
 
   useEffect(() => {
     if (visible) {
@@ -133,6 +187,28 @@ export default function ExtensionsPanel({ visible, onClose }: ExtensionsPanelPro
 
   const tools = EXTENSIONS.filter((e) => e.category === "tool");
   const shields = EXTENSIONS.filter((e) => e.category === "shield");
+  const captchas = EXTENSIONS.filter((e) => e.category === "captcha");
+  const network = EXTENSIONS.filter((e) => e.category === "network");
+
+  const handleDnsSelect = useCallback((id: string) => {
+    if (Platform.OS !== "web") {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    updateDnsProvider(id);
+    if (id === "custom") {
+      setShowDnsConfig(true);
+    } else {
+      setShowDnsConfig(false);
+    }
+  }, [updateDnsProvider]);
+
+  const handleSaveCustomDns = useCallback(() => {
+    updateCustomDns(dnsInput1.trim(), dnsInput2.trim());
+    setShowDnsConfig(false);
+    if (Platform.OS !== "web") {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  }, [dnsInput1, dnsInput2, updateCustomDns]);
 
   if (!visible) return null;
 
@@ -158,6 +234,7 @@ export default function ExtensionsPanel({ visible, onClose }: ExtensionsPanelPro
           style={styles.panelContent}
           showsVerticalScrollIndicator={false}
           bounces={false}
+          keyboardShouldPersistTaps="handled"
         >
           <View style={styles.fingerprintBanner}>
             <View style={styles.fpBannerLeft}>
@@ -213,6 +290,100 @@ export default function ExtensionsPanel({ visible, onClose }: ExtensionsPanelPro
             />
           ))}
 
+          <View style={[styles.sectionHeader, { marginTop: 20 }]}>
+            <Bot size={16} color="#FF6B6B" />
+            <Text style={[styles.sectionTitle, { color: "#FF6B6B" }]}>Captcha Bypass</Text>
+            <View style={styles.captchaBadge}>
+              <Text style={styles.captchaBadgeText}>SMART</Text>
+            </View>
+          </View>
+          <View style={styles.captchaInfoBanner}>
+            <Text style={styles.captchaInfoText}>
+              Auto-detect and attempt to solve CAPTCHAs. Enable specific types or use the generic solver for all.
+            </Text>
+          </View>
+          {captchas.map((item) => (
+            <ExtensionToggle
+              key={item.id}
+              item={item}
+              enabled={!!extensions[item.id]}
+              onToggle={toggleExtension}
+            />
+          ))}
+
+          <View style={[styles.sectionHeader, { marginTop: 20 }]}>
+            <Server size={16} color="#1E90FF" />
+            <Text style={[styles.sectionTitle, { color: "#1E90FF" }]}>Custom DNS</Text>
+          </View>
+          <View style={styles.dnsInfoBanner}>
+            <Text style={styles.dnsInfoText}>
+              Route DNS through custom resolvers for privacy, ad-blocking, or content filtering.
+            </Text>
+          </View>
+          {network.map((item) => (
+            <ExtensionToggle
+              key={item.id}
+              item={item}
+              enabled={!!extensions[item.id]}
+              onToggle={toggleExtension}
+            />
+          ))}
+          {extensions.customdns && (
+            <View style={styles.dnsProviderList}>
+              {DNS_PROVIDERS.map((provider) => (
+                <DnsProviderItem
+                  key={provider.id}
+                  provider={provider}
+                  isSelected={selectedDnsProvider === provider.id}
+                  onSelect={handleDnsSelect}
+                />
+              ))}
+              {(selectedDnsProvider === "custom" || showDnsConfig) && (
+                <View style={styles.customDnsForm}>
+                  <Text style={styles.customDnsLabel}>Primary DNS</Text>
+                  <TextInput
+                    style={styles.customDnsInput}
+                    placeholder="e.g. 1.1.1.1"
+                    placeholderTextColor={Colors.textMuted}
+                    value={dnsInput1}
+                    onChangeText={setDnsInput1}
+                    keyboardType="numbers-and-punctuation"
+                    autoCapitalize="none"
+                    selectionColor={Colors.accent}
+                  />
+                  <Text style={styles.customDnsLabel}>Secondary DNS</Text>
+                  <TextInput
+                    style={styles.customDnsInput}
+                    placeholder="e.g. 1.0.0.1"
+                    placeholderTextColor={Colors.textMuted}
+                    value={dnsInput2}
+                    onChangeText={setDnsInput2}
+                    keyboardType="numbers-and-punctuation"
+                    autoCapitalize="none"
+                    selectionColor={Colors.accent}
+                  />
+                  <TouchableOpacity
+                    style={styles.customDnsSaveBtn}
+                    onPress={handleSaveCustomDns}
+                    activeOpacity={0.7}
+                  >
+                    <Check size={14} color="#000" />
+                    <Text style={styles.customDnsSaveText}>Save DNS</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              <View style={styles.dnsActiveCard}>
+                <Server size={14} color="#1E90FF" />
+                <Text style={styles.dnsActiveText}>
+                  Active: {DNS_PROVIDERS.find((p) => p.id === selectedDnsProvider)?.name || "None"}{" "}
+                  {selectedDnsProvider !== "custom"
+                    ? "(" + (DNS_PROVIDERS.find((p) => p.id === selectedDnsProvider)?.primary || "") + ")"
+                    : customDnsPrimary ? "(" + customDnsPrimary + ")" : ""}
+                </Text>
+              </View>
+            </View>
+          )}
+
           <TouchableOpacity
             style={styles.customExtBtn}
             onPress={() => {
@@ -259,7 +430,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    maxHeight: SCREEN_HEIGHT * 0.78,
+    maxHeight: SCREEN_HEIGHT * 0.85,
     backgroundColor: Colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
@@ -366,6 +537,7 @@ const styles = StyleSheet.create({
     color: Colors.accent,
     textTransform: "uppercase" as const,
     letterSpacing: 1.2,
+    flex: 1,
   },
   extensionRow: {
     flexDirection: "row" as const,
@@ -404,6 +576,152 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
     marginTop: 2,
+  },
+  captchaBadge: {
+    backgroundColor: "rgba(255, 107, 107, 0.15)",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  captchaBadgeText: {
+    fontSize: 9,
+    fontWeight: "800" as const,
+    color: "#FF6B6B",
+    letterSpacing: 0.5,
+  },
+  captchaInfoBanner: {
+    backgroundColor: "rgba(255, 107, 107, 0.06)",
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255, 107, 107, 0.12)",
+  },
+  captchaInfoText: {
+    fontSize: 11,
+    color: "#FF6B6B",
+    lineHeight: 16,
+  },
+  dnsInfoBanner: {
+    backgroundColor: "rgba(30, 144, 255, 0.06)",
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "rgba(30, 144, 255, 0.12)",
+  },
+  dnsInfoText: {
+    fontSize: 11,
+    color: "#1E90FF",
+    lineHeight: 16,
+  },
+  dnsProviderList: {
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  dnsRow: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    gap: 10,
+  },
+  dnsRowActive: {
+    borderColor: "rgba(30, 144, 255, 0.4)",
+    backgroundColor: "rgba(30, 144, 255, 0.08)",
+  },
+  dnsIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+  },
+  dnsIconWrapActive: {
+    backgroundColor: "rgba(30, 144, 255, 0.15)",
+  },
+  dnsInfo: {
+    flex: 1,
+  },
+  dnsName: {
+    fontSize: 13,
+    fontWeight: "600" as const,
+    color: Colors.text,
+  },
+  dnsNameActive: {
+    color: "#1E90FF",
+  },
+  dnsMeta: {
+    fontSize: 10,
+    color: Colors.textSecondary,
+    marginTop: 1,
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+  },
+  customDnsForm: {
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "rgba(30, 144, 255, 0.2)",
+  },
+  customDnsLabel: {
+    fontSize: 11,
+    fontWeight: "600" as const,
+    color: Colors.textSecondary,
+    textTransform: "uppercase" as const,
+    letterSpacing: 0.8,
+    marginBottom: 4,
+    marginTop: 8,
+  },
+  customDnsInput: {
+    backgroundColor: Colors.inputBg,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: Colors.text,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+  },
+  customDnsSaveBtn: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    backgroundColor: "#1E90FF",
+    borderRadius: 10,
+    paddingVertical: 10,
+    marginTop: 12,
+    gap: 6,
+  },
+  customDnsSaveText: {
+    fontSize: 14,
+    fontWeight: "700" as const,
+    color: "#000",
+  },
+  dnsActiveCard: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 8,
+    backgroundColor: "rgba(30, 144, 255, 0.08)",
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: "rgba(30, 144, 255, 0.15)",
+  },
+  dnsActiveText: {
+    fontSize: 11,
+    fontWeight: "600" as const,
+    color: "#1E90FF",
+    flex: 1,
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
   customExtBtn: {
     flexDirection: "row" as const,
