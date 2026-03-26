@@ -1,0 +1,25 @@
+const Colors = {
+  background: "#000000",
+  surface: "#0D0D0D",
+  card: "#1A1A1A",
+  cardBorder: "#2A2A2A",
+  accent: "#00E5CC",
+  accentDim: "#00B3A0",
+  accentGlow: "rgba(0, 229, 204, 0.15)",
+  accentGlowStrong: "rgba(0, 229, 204, 0.3)",
+  text: "#FFFFFF",
+  textSecondary: "#8A8A8A",
+  textMuted: "#555555",
+  danger: "#FF4757",
+  warning: "#FFA502",
+  success: "#00E5CC",
+  incognito: "#7C3AED",
+  overlay: "rgba(0, 0, 0, 0.85)",
+  toolbarBg: "rgba(13, 13, 13, 0.95)",
+  inputBg: "#141414",
+  inputBorder: "#2A2A2A",
+  toggleTrackOff: "#333333",
+  toggleTrackOn: "#00E5CC",
+};
+
+export default Colors;
