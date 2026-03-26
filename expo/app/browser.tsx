@@ -52,6 +52,7 @@ export default function BrowserScreen() {
     activeProfile,
     rotateFingerprint,
     addSearchHistory,
+    customExtensions,
   } = useBrowser();
 
   const initialUrl = params.url || (params.query ? getSearchUrl(params.query) : "https://www.google.com");
@@ -170,13 +171,29 @@ export default function BrowserScreen() {
         scripts.push(EXTENSION_SCRIPTS[key].enable);
       }
     });
+    customExtensions.forEach((ext) => {
+      if (ext.enabled && ext.script) {
+        scripts.push("// Custom Extension: " + ext.name + "\n" + ext.script);
+        console.log("[LordEEN] Custom ext injected:", ext.name);
+      }
+    });
     return scripts.join("\n");
-  }, [extensions, effectiveProfile, cloneProfile, cloneLocation]);
+  }, [extensions, effectiveProfile, cloneProfile, cloneLocation, customExtensions]);
 
   const injectedJavaScriptBefore = useMemo(() => {
     const builtIn = getBuiltInScripts();
     return builtIn || "true;";
   }, [getBuiltInScripts]);
+
+  useEffect(() => {
+    if (!pageLoadedRef.current) return;
+    customExtensions.forEach((ext) => {
+      if (ext.enabled && ext.script) {
+        console.log("[LordEEN] Re-injecting custom ext:", ext.name);
+        injectScript(ext.script);
+      }
+    });
+  }, [customExtensions, injectScript]);
 
   const injectedJavaScript = useMemo(() => {
     return `

@@ -19,6 +19,17 @@ export interface AppClone {
   appCategory?: string;
 }
 
+export interface CustomExtension {
+  id: string;
+  name: string;
+  description: string;
+  script: string;
+  enabled: boolean;
+  createdAt: number;
+  sourceType: 'zip' | 'file' | 'url' | 'manual';
+  fileName?: string;
+}
+
 export interface SearchHistoryItem {
   id: string;
   query: string;
@@ -39,6 +50,7 @@ export interface BrowserState {
 const STORAGE_KEY = "lordeen_browser_state";
 const CLONES_KEY = "lordeen_app_clones";
 const SEARCH_HISTORY_KEY = "lordeen_search_history";
+const CUSTOM_EXTENSIONS_KEY = "lordeen_custom_extensions";
 const MAX_HISTORY = 100;
 
 const getDefaultExtensions = (): Record<string, boolean> => {
@@ -76,14 +88,16 @@ export const [BrowserProvider, useBrowser] = createContextHook(() => {
   const [activeProfile, setActiveProfile] = useState<DeviceProfile>(getRandomProfile());
   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
   const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([]);
+  const [customExtensions, setCustomExtensions] = useState<CustomExtension[]>([]);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [stored, storedClones, storedHistory] = await Promise.all([
+        const [stored, storedClones, storedHistory, storedCustomExt] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEY),
           AsyncStorage.getItem(CLONES_KEY),
           AsyncStorage.getItem(SEARCH_HISTORY_KEY),
+          AsyncStorage.getItem(CUSTOM_EXTENSIONS_KEY),
         ]);
         if (stored) {
           const parsed = JSON.parse(stored) as Partial<BrowserState>;
@@ -107,6 +121,10 @@ export const [BrowserProvider, useBrowser] = createContextHook(() => {
         }
         if (storedHistory) {
           setSearchHistory(JSON.parse(storedHistory) as SearchHistoryItem[]);
+        }
+        if (storedCustomExt) {
+          setCustomExtensions(JSON.parse(storedCustomExt) as CustomExtension[]);
+          console.log("[LordEEN] Loaded custom extensions:", JSON.parse(storedCustomExt).length);
         }
       } catch (e) {
         console.log("Failed to load browser state:", e);
@@ -150,6 +168,68 @@ export const [BrowserProvider, useBrowser] = createContextHook(() => {
       await AsyncStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history));
     } catch (e) {
       console.log("Failed to persist search history:", e);
+    }
+  }, []);
+
+  const persistCustomExtensions = useCallback(async (exts: CustomExtension[]) => {
+    try {
+      await AsyncStorage.setItem(CUSTOM_EXTENSIONS_KEY, JSON.stringify(exts));
+      console.log("[LordEEN] Persisted", exts.length, "custom extensions");
+    } catch (e) {
+      console.log("Failed to persist custom extensions:", e);
+    }
+  }, []);
+
+  const addCustomExtension = useCallback(
+    (ext: Omit<CustomExtension, "id" | "createdAt" | "enabled">) => {
+      const newExt: CustomExtension = {
+        ...ext,
+        id: "cext_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8),
+        createdAt: Date.now(),
+        enabled: true,
+      };
+      setCustomExtensions((prev) => {
+        const updated = [...prev, newExt];
+        void persistCustomExtensions(updated);
+        return updated;
+      });
+      console.log("[LordEEN] Added custom extension:", newExt.name);
+      return newExt;
+    },
+    [persistCustomExtensions]
+  );
+
+  const removeCustomExtension = useCallback(
+    (id: string) => {
+      setCustomExtensions((prev) => {
+        const updated = prev.filter((e) => e.id !== id);
+        void persistCustomExtensions(updated);
+        return updated;
+      });
+      console.log("[LordEEN] Removed custom extension:", id);
+    },
+    [persistCustomExtensions]
+  );
+
+  const toggleCustomExtension = useCallback(
+    (id: string) => {
+      setCustomExtensions((prev) => {
+        const updated = prev.map((e) =>
+          e.id === id ? { ...e, enabled: !e.enabled } : e
+        );
+        void persistCustomExtensions(updated);
+        return updated;
+      });
+    },
+    [persistCustomExtensions]
+  );
+
+  const clearAllCustomExtensions = useCallback(async () => {
+    setCustomExtensions([]);
+    try {
+      await AsyncStorage.removeItem(CUSTOM_EXTENSIONS_KEY);
+    } catch (e) {
+      console.log("Failed to clear custom extensions:", e);
     }
   }, []);
 
@@ -378,6 +458,7 @@ export const [BrowserProvider, useBrowser] = createContextHook(() => {
     activeProfile,
     selectedProfileId,
     searchHistory,
+    customExtensions,
     toggleIncognito,
     toggleExtension,
     updateSearchEngine,
@@ -398,6 +479,10 @@ export const [BrowserProvider, useBrowser] = createContextHook(() => {
     updateAppClone,
     touchAppClone,
     clearAllClones,
+    addCustomExtension,
+    removeCustomExtension,
+    toggleCustomExtension,
+    clearAllCustomExtensions,
   }), [
     incognito,
     searchEngine,
@@ -409,6 +494,7 @@ export const [BrowserProvider, useBrowser] = createContextHook(() => {
     activeProfile,
     selectedProfileId,
     searchHistory,
+    customExtensions,
     toggleIncognito,
     toggleExtension,
     updateSearchEngine,
@@ -429,5 +515,9 @@ export const [BrowserProvider, useBrowser] = createContextHook(() => {
     updateAppClone,
     touchAppClone,
     clearAllClones,
+    addCustomExtension,
+    removeCustomExtension,
+    toggleCustomExtension,
+    clearAllCustomExtensions,
   ]);
 });

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from "react";
+import React, { useRef, useEffect, useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -24,11 +24,14 @@ import {
   Shield,
   ToggleRight,
   Puzzle,
+  Package,
+  ChevronRight,
 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { EXTENSIONS, ExtensionItem } from "@/constants/extensions";
 import { useBrowser } from "@/providers/BrowserProvider";
+import CustomExtensionManager from "@/components/CustomExtensionManager";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 
@@ -93,7 +96,9 @@ export default function ExtensionsPanel({ visible, onClose }: ExtensionsPanelPro
     autoRotateFingerprint,
     activeProfile,
     toggleAutoRotate,
+    customExtensions,
   } = useBrowser();
+  const [showCustomManager, setShowCustomManager] = useState<boolean>(false);
 
   useEffect(() => {
     if (visible) {
@@ -207,8 +212,38 @@ export default function ExtensionsPanel({ visible, onClose }: ExtensionsPanelPro
               onToggle={toggleExtension}
             />
           ))}
+
+          <TouchableOpacity
+            style={styles.customExtBtn}
+            onPress={() => {
+              if (Platform.OS !== "web") {
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }
+              setShowCustomManager(true);
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.customExtIconWrap}>
+              <Package size={20} color="#7C3AED" />
+            </View>
+            <View style={styles.customExtInfo}>
+              <Text style={styles.customExtTitle}>Custom Extensions</Text>
+              <Text style={styles.customExtSub}>
+                {customExtensions.length > 0
+                  ? customExtensions.length + " installed · " + customExtensions.filter((e) => e.enabled).length + " active"
+                  : "Add ZIP, JS files, or URLs"}
+              </Text>
+            </View>
+            <ChevronRight size={16} color={Colors.textMuted} />
+          </TouchableOpacity>
+
           <View style={{ height: 40 }} />
         </ScrollView>
+
+        <CustomExtensionManager
+          visible={showCustomManager}
+          onClose={() => setShowCustomManager(false)}
+        />
       </Animated.View>
     </View>
   );
@@ -367,6 +402,39 @@ const styles = StyleSheet.create({
   },
   extensionDesc: {
     fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  customExtBtn: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 20,
+    borderWidth: 1.5,
+    borderColor: "rgba(124, 58, 237, 0.3)",
+    borderStyle: "dashed" as const,
+    gap: 12,
+  },
+  customExtIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "rgba(124, 58, 237, 0.15)",
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+  },
+  customExtInfo: {
+    flex: 1,
+  },
+  customExtTitle: {
+    fontSize: 14,
+    fontWeight: "700" as const,
+    color: "#7C3AED",
+  },
+  customExtSub: {
+    fontSize: 11,
     color: Colors.textSecondary,
     marginTop: 2,
   },
