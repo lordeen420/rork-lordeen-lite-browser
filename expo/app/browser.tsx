@@ -30,6 +30,7 @@ import ExtensionsPanel from "@/components/ExtensionsPanel";
 import { EXTENSION_SCRIPTS } from "@/constants/extensions";
 import { getFingerprintSpoofScript, DEVICE_PROFILES } from "@/constants/deviceProfiles";
 import { getLocationById, getGeolocationSpoofScript, MockLocation } from "@/constants/locations";
+import { urlMatchesPatterns, generateChromeAPIMock, buildContentScriptInjector } from "@/utils/chromeExtensionParser";
 
 let WebView: React.ComponentType<any> | null = null;
 try {
@@ -171,8 +172,29 @@ export default function BrowserScreen() {
         scripts.push(EXTENSION_SCRIPTS[key].enable);
       }
     });
+    const hasAnyCustomExt = customExtensions.some((ext) => ext.enabled);
+    if (hasAnyCustomExt) {
+      scripts.push(generateChromeAPIMock());
+    }
+
     customExtensions.forEach((ext) => {
-      if (ext.enabled && ext.script) {
+      if (!ext.enabled) return;
+
+      if (ext.contentScripts && ext.contentScripts.length > 0) {
+        const currentPageUrl = currentUrlRef.current || "";
+        for (const cs of ext.contentScripts) {
+          const matches = urlMatchesPatterns(currentPageUrl, cs.matches);
+          const excluded = cs.excludeMatches.length > 0 && urlMatchesPatterns(currentPageUrl, cs.excludeMatches);
+          if (matches && !excluded) {
+            scripts.push(buildContentScriptInjector(cs.js, cs.css, cs.runAt, ext.name));
+            console.log("[LordEEN] Chrome ext content script injected:", ext.name, "for", currentPageUrl);
+          }
+        }
+        if (ext.backgroundScript) {
+          scripts.push("(function() { try {" + ext.backgroundScript + "} catch(e) { console.error('[LordEEN BG]', e); } })();");
+          console.log("[LordEEN] Chrome ext background injected:", ext.name);
+        }
+      } else if (ext.script) {
         scripts.push("// Custom Extension: " + ext.name + "\n" + ext.script);
         console.log("[LordEEN] Custom ext injected:", ext.name);
       }

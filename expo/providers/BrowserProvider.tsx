@@ -19,6 +19,17 @@ export interface AppClone {
   appCategory?: string;
 }
 
+export interface ExtensionContentScript {
+  matches: string[];
+  excludeMatches: string[];
+  js: string;
+  css: string;
+  runAt: string;
+  allFrames: boolean;
+  jsFiles: string[];
+  cssFiles: string[];
+}
+
 export interface CustomExtension {
   id: string;
   name: string;
@@ -28,6 +39,18 @@ export interface CustomExtension {
   createdAt: number;
   sourceType: 'zip' | 'file' | 'url' | 'manual';
   fileName?: string;
+  manifestVersion?: number;
+  version?: string;
+  permissions?: string[];
+  contentScripts?: ExtensionContentScript[];
+  backgroundScript?: string;
+  cssCode?: string;
+  hasPopup?: boolean;
+  totalFiles?: number;
+  totalSize?: number;
+  iconUrl?: string;
+  author?: string;
+  homepageUrl?: string;
 }
 
 export interface SearchHistoryItem {
