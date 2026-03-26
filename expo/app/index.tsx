@@ -53,6 +53,7 @@ import { QUICK_LINKS } from "@/constants/extensions";
 import { useBrowser, AppClone } from "@/providers/BrowserProvider";
 import QuickLinkGrid from "@/components/QuickLinkGrid";
 import AddCloneModal from "@/components/AddCloneModal";
+import CustomExtensionManager from "@/components/CustomExtensionManager";
 import { getLocationById } from "@/constants/locations";
 
 const ICON_COMPONENTS: Record<string, React.ComponentType<{ size: number; color: string }>> = {
@@ -199,6 +200,7 @@ export default function HomeScreen() {
   } = useBrowser();
   const [searchText, setSearchText] = useState<string>("");
   const [showAddClone, setShowAddClone] = useState<boolean>(false);
+  const [showExtManager, setShowExtManager] = useState<boolean>(false);
   const logoScale = useRef(new Animated.Value(1)).current;
   const inputGlow = useRef(new Animated.Value(0)).current;
 
@@ -486,7 +488,7 @@ export default function HomeScreen() {
                 if (Platform.OS !== "web") {
                   void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 }
-                router.push({ pathname: "/browser", params: { url: "https://www.google.com", openExtensions: "true" } });
+                setShowExtManager(true);
               }}
               activeOpacity={0.7}
               testID="add-extension-btn"
@@ -557,6 +559,11 @@ export default function HomeScreen() {
         visible={showAddClone}
         onClose={() => setShowAddClone(false)}
         onAdd={handleAddClone}
+      />
+
+      <CustomExtensionManager
+        visible={showExtManager}
+        onClose={() => setShowExtManager(false)}
       />
     </View>
   );
